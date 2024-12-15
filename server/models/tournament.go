@@ -8,6 +8,6 @@ type Tournament struct {
 	Date     time.Time `json:"date"`
 	FormatID uint
 	VenueID  uint
-	Format   Format `json:"format" gorm:"foreignKey:FormatID"`
-	Venue    Venue  `json:"venue" gorm:"foreignKey:VenueID"`
+	Format   Format `json:"format" gorm:"foreignKey:FormatID;references:ID"`
+	Venue    Venue  `json:"venue" gorm:"foreignKey:VenueID;references:ID"`
 }

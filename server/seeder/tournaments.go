@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-faker/faker/v4"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type TournamentOptions struct {
@@ -30,6 +29,6 @@ func TournamentSeeder(db *gorm.DB, opt TournamentOptions) {
 			VenueID:  opt.Venue.ID,
 		}
 
-		db.Omit(clause.Associations).Create(&tournament)
+		db.Create(&tournament)
 	}
 }

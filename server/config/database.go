@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 
 	"tokutenban/models"
@@ -9,6 +10,7 @@ import (
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func DatabaseConnection() (*gorm.DB, error) {
@@ -45,6 +47,21 @@ func MigrateDatabase(db *gorm.DB) {
 	db.AutoMigrate(&models.Shot{})
 }
 
+func randomOrder(n int) []int {
+	// Create a slice of numbers from 0 to n-1
+	numbers := make([]int, n)
+	for i := 0; i < n; i++ {
+		numbers[i] = i + 1
+	}
+
+	// Shuffle the slice
+	rand.Shuffle(n, func(i, j int) {
+		numbers[i], numbers[j] = numbers[j], numbers[i]
+	})
+
+	return numbers
+}
+
 func SeedDatabase(db *gorm.DB) {
 	db.Exec("SET FOREIGN_KEY_CHECKS = 0")
 	db.Exec("TRUNCATE TABLE clubs")
@@ -70,12 +87,34 @@ func SeedDatabase(db *gorm.DB) {
 		seeder.TeamSeeder(db, seeder.TeamOptions{Club: club, Size: 5})
 	}
 
-	venues := seeder.VenueSeeder(db, seeder.VenuOptions{Count: 10})
+	venues := seeder.VenueSeeder(db, seeder.VenuOptions{Count: 3})
 	for _, venue := range venues {
 		for _, size := range []int{1, 3, 5} {
 			var format models.Format
 			db.Where("team_size = ?", size).First(&format)
 			seeder.TournamentSeeder(db, seeder.TournamentOptions{Count: 1, Format: format, Venue: venue})
+		}
+	}
+
+	var tournaments []models.Tournament
+	db.Preload(clause.Associations).Find(&tournaments)
+	db.Preload(clause.Associations).Find(&clubs)
+
+	for _, tournament := range tournaments {
+		if tournament.Format.TeamSize == 1 {
+			for _, i := range randomOrder(10) {
+				var participant models.Participant
+				db.Where("individual_id = ?", i).First(&participant)
+				seeder.RegistrationSeeder(db, seeder.RegistrationOptions{Tournament: tournament, Participant: participant})
+			}
+		} else {
+			var teams []models.Team
+			db.Preload(clause.Associations).Where("size = ?", tournament.Format.TeamSize).Find(&teams)
+			for _, team := range teams {
+				var participant models.Participant
+				db.Where("team_id = ?", team.ID).First(&participant)
+				seeder.RegistrationSeeder(db, seeder.RegistrationOptions{Tournament: tournament, Participant: participant})
+			}
 		}
 	}
 }
