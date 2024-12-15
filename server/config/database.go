@@ -72,7 +72,7 @@ func SeedDatabase(db *gorm.DB) {
 
 	venues := seeder.VenueSeeder(db, seeder.VenuOptions{Count: 10})
 	for _, venue := range venues {
-		for _, size := range []int{3, 5} {
+		for _, size := range []int{1, 3, 5} {
 			var format models.Format
 			db.Where("team_size = ?", size).First(&format)
 			seeder.TournamentSeeder(db, seeder.TournamentOptions{Count: 1, Format: format, Venue: venue})
