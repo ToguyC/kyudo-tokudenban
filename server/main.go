@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"net/http"
 
@@ -23,10 +24,28 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+var (
+	migrateFlag bool
+)
+
 func main() {
+	flag.BoolVar(&migrateFlag, "migrate", false, "Migrate the database")
+	flag.Parse()
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+	}
+
+	if migrateFlag {
+		db, err := config.DatabaseConnection()
+		if err != nil {
+			log.Fatalf("Failed to connect to database: %v", err)
+		}
+
+		log.Println("Migrating database...")
+		config.MigrateDatabase(db)
+		return
 	}
 
 	r := mux.NewRouter()
@@ -39,9 +58,6 @@ func main() {
 	r.HandleFunc("/ws", wsHandler)
 
 	log.Println("Server is running on :8080")
-
-	db := config.DatabaseConnection()
-	config.MigrateDatabase(db)
 
 	credentials := handlers.AllowCredentials()
 	methods := handlers.AllowedMethods([]string{"POST", "GET", "PUT", "DELETE"})

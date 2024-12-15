@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func DatabaseConnection() *gorm.DB {
+func DatabaseConnection() (*gorm.DB, error) {
 	sqlInfo := fmt.Sprintf(
 		"%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		os.Getenv("DB_USER"),
@@ -22,10 +22,10 @@ func DatabaseConnection() *gorm.DB {
 
 	db, err := gorm.Open(mysql.Open(sqlInfo), &gorm.Config{})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return db
+	return db, nil
 }
 
 func MigrateDatabase(db *gorm.DB) {
