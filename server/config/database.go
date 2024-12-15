@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"tokutenban/models"
+	"tokutenban/seeder"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -42,4 +43,29 @@ func MigrateDatabase(db *gorm.DB) {
 	db.AutoMigrate(&models.Match{})
 	db.AutoMigrate(&models.Result{})
 	db.AutoMigrate(&models.Shot{})
+}
+
+func SeedDatabase(db *gorm.DB) {
+	db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+	db.Exec("TRUNCATE TABLE clubs")
+	db.Exec("TRUNCATE TABLE formats")
+	db.Exec("TRUNCATE TABLE individuals")
+	db.Exec("TRUNCATE TABLE participants")
+	db.Exec("TRUNCATE TABLE teams")
+	db.Exec("TRUNCATE TABLE venues")
+	db.Exec("TRUNCATE TABLE tournaments")
+	db.Exec("TRUNCATE TABLE registrations")
+	db.Exec("TRUNCATE TABLE face_offs")
+	db.Exec("TRUNCATE TABLE rounds")
+	db.Exec("TRUNCATE TABLE matches")
+	db.Exec("TRUNCATE TABLE results")
+	db.Exec("TRUNCATE TABLE shots")
+	db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+
+	seeder.FormatSeeder(db)
+	clubs := seeder.ClubSeeder(db)
+	for _, club := range clubs {
+		seeder.IndividualSeeder(db, seeder.IndividualOptions{Count: 10, Club: club})
+		seeder.TeamSeeder(db, seeder.TeamOptions{Club: club, Format: models.Format{TeamSize: 3}})
+	}
 }

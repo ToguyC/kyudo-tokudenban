@@ -5,6 +5,8 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -12,6 +14,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"tokutenban/config"
+	"tokutenban/models"
 )
 
 // API version prefix
@@ -26,10 +29,40 @@ var upgrader = websocket.Upgrader{
 
 var (
 	migrateFlag bool
+	seedFlag    bool
 )
+
+func enableCORS(r *mux.Router) http.Handler {
+	credentials := handlers.AllowCredentials()
+	methods := handlers.AllowedMethods([]string{"POST", "GET", "PUT", "DELETE"})
+	origins := handlers.AllowedOrigins(strings.Split(os.Getenv("CORS_ORIGINS"), ","))
+
+	return handlers.CORS(credentials, methods, origins)(r)
+}
+
+func migrateDatabase() {
+	db, err := config.DatabaseConnection()
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	log.Println("Migrating database...")
+	config.MigrateDatabase(db)
+}
+
+func seedDatabase() {
+	db, err := config.DatabaseConnection()
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+
+	log.Println("Seeding database...")
+	config.SeedDatabase(db)
+}
 
 func main() {
 	flag.BoolVar(&migrateFlag, "migrate", false, "Migrate the database")
+	flag.BoolVar(&seedFlag, "seed", false, "Seed the database")
 	flag.Parse()
 
 	err := godotenv.Load()
@@ -38,13 +71,12 @@ func main() {
 	}
 
 	if migrateFlag {
-		db, err := config.DatabaseConnection()
-		if err != nil {
-			log.Fatalf("Failed to connect to database: %v", err)
-		}
-
-		log.Println("Migrating database...")
-		config.MigrateDatabase(db)
+		migrateDatabase()
+	}
+	if seedFlag {
+		seedDatabase()
+	}
+	if migrateFlag || seedFlag {
 		return
 	}
 
@@ -58,23 +90,25 @@ func main() {
 	r.HandleFunc("/ws", wsHandler)
 
 	log.Println("Server is running on :8080")
-
-	credentials := handlers.AllowCredentials()
-	methods := handlers.AllowedMethods([]string{"POST", "GET", "PUT", "DELETE"})
-	origins := handlers.AllowedOrigins([]string{"http://localhost:5173", "http://127.0.0.1:5173"})
-
-	if err := http.ListenAndServe(":8080", handlers.CORS(credentials, methods, origins)(r)); err != nil {
+	if err := http.ListenAndServe(":8080", enableCORS(r)); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
 
 // helloHandler handles the REST API /hello endpoint
 func helloHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{"message": "Hello, World!"}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
+
+	db, _ := config.DatabaseConnection()
+
+	var clubs []models.Club
+	db.Find(&clubs)
+
+	// for _, c := range clubs {
+	// 	db.Delete(&c)
+	// }
+
+	json.NewEncoder(w).Encode(clubs)
 }
 
 // wsHandler handles WebSocket connections
