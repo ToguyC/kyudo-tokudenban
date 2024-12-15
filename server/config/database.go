@@ -66,6 +66,16 @@ func SeedDatabase(db *gorm.DB) {
 	clubs := seeder.ClubSeeder(db)
 	for _, club := range clubs {
 		seeder.IndividualSeeder(db, seeder.IndividualOptions{Count: 10, Club: club})
-		seeder.TeamSeeder(db, seeder.TeamOptions{Club: club, Format: models.Format{TeamSize: 3}})
+		seeder.TeamSeeder(db, seeder.TeamOptions{Club: club, Size: 3})
+		seeder.TeamSeeder(db, seeder.TeamOptions{Club: club, Size: 5})
+	}
+
+	venues := seeder.VenueSeeder(db, seeder.VenuOptions{Count: 10})
+	for _, venue := range venues {
+		for _, size := range []int{3, 5} {
+			var format models.Format
+			db.Where("team_size = ?", size).First(&format)
+			seeder.TournamentSeeder(db, seeder.TournamentOptions{Count: 1, Format: format, Venue: venue})
+		}
 	}
 }
