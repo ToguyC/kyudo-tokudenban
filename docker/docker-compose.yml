@@ -1,0 +1,28 @@
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: tokutenban
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+    ports:
+      - "3306:3306"
+    networks:
+      - tokutenban_network
+    volumes:
+      - ./mariadb/data:/var/lib/mysql
+      - ./mariadb/init/user.sql:/docker-entrypoint-initdb.d/user.sql
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOST=mariadb
+    ports:
+      - "8000:80"
+    networks:
+      - tokutenban_network
+  
+networks:
+  tokutenban_network:
+    driver: bridge
